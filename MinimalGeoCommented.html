@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MinimalGeo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+
+    <script id="2d-vertex-shader" type="x-shader/x-vertex">
+    // This is the code for the vertex shader.
+    // The vertexPosition attribute defines the position (the coordinates) of the current vertex.
+    // The uniform value "t" is a value that can change only per primitive, but is assigned per vertex.
+    // With other words: It is uniform for one primitive.
+		attribute vec2 vertexPosition;
+		uniform float t;
+		uniform float s;
+		varying float S;
+
+		void main() {
+			//  gl_Position = vec4(a_position, 0.0, t);
+      // Set the varying variable "T", to pass the value of "t" to the fragment shader.
+			S = s/t;
+      // Set the position of the vertex
+      mat2 turnMat;
+      turnMat[0] = vec2(cos(t), -sin(t));
+      turnMat[1] = vec2(sin(t), cos(t));
+      vec2 vertexPositionTurned = turnMat*vertexPosition;
+			gl_Position = vec4(vertexPositionTurned[0], vertexPositionTurned[1], 0.0, 1.0);
+		}
+	</script>
+
+    <script id="2d-fragment-shader" type="x-shader/x-fragment">
+    // This is the code for the fragment shader.
+    // Set the precision to medium when calculating float (high is not always supported).
+		precision mediump float;
+    // The varying variable "T" must be declared again here (as already in the vertex shader).
+		varying float S;
+		void main() {
+      // Set the color of the fragments to green.
+			gl_FragColor = vec4(0.0 ,S,0.0,1.0);
+		}
+	</script>
+
+  <script type="text/javascript">
+      window.onload = init();
+      var glContext;
+      var program;
+      var buffer;
+      var someProgress;
+      var a;
+
+      function init() {
+        var canvas;
+        var vertexShader;
+        var fragmentShader;
+
+        canvas = configureCanvas("glCanvas", 400, 300);
+        glContext = getGlContext(canvas);
+
+        // Shaders need to be compiled in order to run on the GPU. This is JavaScript.
+        // Thus we need to compile the shaders at runtime.
+        vertexShader = compileShader("2d-vertex-shader", glContext.VERTEX_SHADER);
+        fragmentShader = compileShader("2d-fragment-shader", glContext.FRAGMENT_SHADER);
+
+        // Now we need to put the shaders together to a (hopefully) working program.
+        program = combineTwoShadersToProgram(vertexShader, fragmentShader);
+
+        // This buffer is empty. We need it later to store the vertex data (cooredinates).
+        buffer = glContext.createBuffer();
+
+        // This  variable is our "time".
+        // Later this value is increased (or decreased) after each iteration to simulate time.
+        someProgress = 1.0;
+        a = 0.3;
+
+        //start game loop
+        render();
+      }
+
+      function configureCanvas(canvasName, width, heigth){
+        var canvas = document.getElementById(canvasName);
+        canvas.width = width;
+        canvas.height = heigth;
+        return canvas;
+      }
+
+      function getGlContext(canvas){
+        var glContext = canvas.getContext("webgl");
+
+        // Set viewport relative to the bottom left corner of the canvas, as it is configured with the first two params.
+        // DrawingBufferWidth and drawingBufferHeight are equal to the width and heigth of the canvas.
+        // The result in this case is a viewport as large as the canvas.
+        glContext.viewport(0.0, 0.0, glContext.drawingBufferWidth, glContext.drawingBufferHeight);
+
+        return glContext;
+      }
+
+      function compileShader(scriptName, shaderType){
+        // We need to get the source code of the shader as a single string to pass it to the compiler.
+        var shaderScript = document.getElementById(scriptName);
+        var shaderSource = shaderScript.text;
+
+        var shader = glContext.createShader(shaderType);
+        glContext.shaderSource(shader, shaderSource);
+        glContext.compileShader(shader);
+        console.log(glContext.getShaderInfoLog(shader));
+        return shader;
+      }
+
+      function combineTwoShadersToProgram(shader1, shader2){
+        var program = glContext.createProgram();
+        glContext.attachShader(program, shader1);
+        glContext.attachShader(program, shader2);
+        glContext.linkProgram(program);
+        return program;
+      }
+
+      function render() {
+        // Recusrive gameloop/animation frame offered by browser.
+        window.requestAnimationFrame(render);
+
+        clearBackgroundRed();
+
+        // Define, which program to use.
+        glContext.useProgram(program);
+
+        // Bind geometry to shader program
+        glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
+
+        // Create and initialize the buffers data store.
+        glContext.bufferData(
+          // Specifying the "target" (like a type)
+          glContext.ARRAY_BUFFER,
+          // Specifying the vertex coordinates.
+          // They are relative to the size of the viewport, where the origin is
+          // in the center and the borders are at a distance of 1.0 x and y direction.
+          // In this case, they represent six vertices, building 2 triangles.
+          new Float32Array([
+              -a, -a,
+               a, -a,
+              -a, a,
+              -a, a,
+               a, a,
+               a, -a]),
+          // Specifying, how we intend to use this buffer (as a hint to WebGL).
+          // Hence we want to initialize it once and only use it several times,
+          // it is defined as static.
+          glContext.STATIC_DRAW);
+
+        // Set the "vertexPosition" attribut variable in the vertex shader to the array defined above
+        setVertexAttribute("vertexPosition");
+        // Set the uniform variable "t" of the fragment shader
+        setFragmentUniform("t",someProgress);
+		setFragmentUniform("s",0.5);
+
+        // "Proceed in time" or "Make progress"
+        someProgress += 0.01;
+
+        // Draw the thriangles, specified by the vertex coordinates in the buffer specified above,
+        // starting at index 0 for 6 vertices overall.
+        glContext.drawArrays(glContext.TRIANGLES, 0, 3);
+		
+		setFragmentUniform("s",1.0);
+		glContext.drawArrays(glContext.TRIANGLES, 3, 3);
+      }
+
+      function clearBackgroundRed(){
+        glContext.clearColor(1.0, 0.0, 0.0, 1.0);
+        glContext.clear(glContext.COLOR_BUFFER_BIT);
+      }
+
+      function setVertexAttribute(attributeName){
+        // Get the location (like an address) of the "vertexPosition" attribut in the program
+        positionLocation = glContext.getAttribLocation(program, attributeName);
+        // Enable a mysterious flag, to allow using "drawArrays" later.
+        glContext.enableVertexAttribArray(positionLocation);
+        // Specifying the structure of the attribute array at positionLocation:
+        // Param 2: Number of components per vertex attribute
+        // Param 3: Type of the attribute components (array type)
+        // Param 3: Normalize? NO! Why? No idea.
+        // Param 4/5: Some offsets.
+        glContext.vertexAttribPointer(positionLocation, 2, glContext.FLOAT, false, 0, 0);
+      }
+
+      function setFragmentUniform(uniformName, color){
+        // Get the location (like an address) of the uniform variable "t".
+        var tLocation = glContext.getUniformLocation(program, uniformName);
+        // Set one dimensional float value "t"
+        glContext.uniform1f(tLocation, color);
+      }
+</script>
+</body>
+</html>
