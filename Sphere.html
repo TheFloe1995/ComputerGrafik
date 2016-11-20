@@ -16,14 +16,20 @@
 
 		void main() {
       float intensity = 0.7;  // Il
-      float medium = 0.9;     // Im
+      float medium = 0.6;     // Im
       float ambiente = 0.2;   // Ia
+      float hardness = 50.0;    // h
+      float specularity = 1.0; // s
 
-      vec3 ligthSource = vec3(0.0, 0.0, -2.0);
+      vec3 ligthSource = vec3(3.0, 3.0, -10.0);
+      vec3 pointOfView = vec3(0.0, 0.0, -1.0);
       vec3 light = normalize(ligthSource - vertexPosition); // PL
 			vec3 normal = normalize(vertexPosition);
+      vec3 view = normalize(pointOfView - vertexPosition);
+      vec3 reflection = normalize(-light + 2.0*dot(light, normal)*normal);
+      float Is = intensity * medium * specularity * max(0.0, pow(dot(reflection, view), hardness));
 
-      brightness = intensity * medium * max(0.0, dot(normal, light)) + ambiente;
+      brightness = intensity * medium * max(0.0, dot(normal, light)) + ambiente + Is;
 
       gl_Position = vec4(vertexPosition[0], vertexPosition[1], vertexPosition[2], -vertexPosition[2] + 2.0);
 		}
@@ -60,7 +66,7 @@
         program = combineTwoShadersToProgram(vertexShader, fragmentShader);
 
         buffer = glContext.createBuffer();
-
+        glContext.enable(glContext.DEPTH_TEST);
         someProgress = 1.0;
         a = 0.3;
 
@@ -178,11 +184,13 @@
                 vertices.push(triangle1[i][j]);
               }
             }
+
             for(var i = 0; i < 3; i++){
               for(var j = 0; j < 3; j++){
                 vertices.push(triangle2[i][j]);
               }
             }
+
           }
         }
 
