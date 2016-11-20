@@ -28,25 +28,44 @@ void main() {
 precision mediump float;
 varying float T;
 
-// Lambert model, S. 44
+// Phong model, S. 46
 // Based on the circle example
 void main() {
-  float intensity = 0.7;  // Il
-  float medium = 0.9;     // Im
-  float ambiente = 0.2;   // Ia
+  float d = 10000.0;
+  float intensity = 0.6;  // Il
+  float medium = 0.8;     // Im
+  float hardness = 5.0;    // h
+  float specularity = 1.0; // s
+  float ambiente = 0.1;
 
-  vec3 center = vec3(400.0, 300.0, -300.0);
-  vec3 originalPoint = vec3(gl_FragCoord.x/gl_FragCoord.w, gl_FragCoord.y/gl_FragCoord.w, gl_FragCoord.z/gl_FragCoord.w);
-  vec3 ligthSource = vec3(800.0, 600.0, 200.0);
+  vec3 center = vec3(300.0, 300.0, -1000.0);
+  vec3 pointOfView = vec3(300.0, 300.0, d);
+  vec3 lightSource = vec3(500.0, 500.0, -300.0);
+  float x = gl_FragCoord.x - 300.0;
+  float y = gl_FragCoord.y - 300.0;
+
+  vec3 originalPoint;
+  float zHelp1 = (d*(sqrt(-(d*d - 250000.0)*x*x - (d*d - 250000.0)*y*y + 250000.0*d*d) - x*x - y*y))/(x*x + y*y + d*d);
+
+  originalPoint.z = center.z + zHelp1;
+  originalPoint.x = 300.0 + x*(originalPoint.z/d + 1.0);
+  originalPoint.y = 300.0 + y*(originalPoint.z/d + 1.0);
+
   vec3 normal = normalize(originalPoint - center);
-  vec3 light = normalize(ligthSource - originalPoint); // PL
+  vec3 light = normalize(lightSource - originalPoint);
+  vec3 view = normalize(pointOfView - originalPoint);
+  vec3 reflection = normalize(-light + 2.0*dot(light, normal)*normal);
 
-  float Id = intensity * medium * max(0.0, dot(normal, light)) + ambiente;
+  float Id = intensity * medium * max(0.0, dot(normal, light));
+  float Is = intensity * medium * specularity * max(0.0, pow(dot(reflection, view), hardness));
+  float a =  Id + Is + ambiente;
 
-  if((gl_FragCoord.x - 400.0)* (gl_FragCoord.x - 400.0) + (gl_FragCoord.y - 300.0)* (gl_FragCoord.y - 300.0)<= 300.0 * 300.0) {
-      gl_FragColor = vec4(vec3(Id , Id, Id),1.0);
+  if((gl_FragCoord.x - 300.0)* (gl_FragCoord.x - 300.0) + (gl_FragCoord.y - 300.0)* (gl_FragCoord.y - 300.0)<= 250.0 * 250.0)
+  {
+      gl_FragColor = vec4(vec3(a , a, a),1.0);
   }
-  else {
+  else
+  {
       gl_FragColor = vec4(0.0 ,0.0,0.0,1.0);
   }
 }
@@ -71,7 +90,7 @@ void main() {
         function init() {
             // Get A WebGL context
             canvas = document.getElementById("glcanvas");
-            canvas.width = 800;
+            canvas.width = 600;
             canvas.height = 600;
             gl = canvas.getContext("webgl");
             gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
