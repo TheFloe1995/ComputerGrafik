@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sphere</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+
+    <script id="2d-vertex-shader" type="x-shader/x-vertex">
+		attribute vec3 vertexPosition;
+		uniform float t;
+		uniform float s;
+    varying float brightness;
+
+		void main() {
+      float intensity = 0.7;  // Il
+      float medium = 0.9;     // Im
+      float ambiente = 0.2;   // Ia
+
+      vec3 ligthSource = vec3(0.0, 0.0, -2.0);
+      vec3 light = normalize(ligthSource - vertexPosition); // PL
+			vec3 normal = normalize(vertexPosition);
+
+      brightness = intensity * medium * max(0.0, dot(normal, light)) + ambiente;
+
+      gl_Position = vec4(vertexPosition[0], vertexPosition[1], vertexPosition[2], -vertexPosition[2] + 2.0);
+		}
+	</script>
+
+    <script id="2d-fragment-shader" type="x-shader/x-fragment">
+		precision mediump float;
+		varying float brightness;
+		void main() {
+
+			gl_FragColor = vec4(brightness, brightness, brightness, 1.0);
+		}
+	</script>
+
+  <script type="text/javascript">
+      window.onload = init();
+      var glContext;
+      var program;
+      var buffer;
+      var someProgress;
+      var a;
+
+      function init() {
+        var canvas;
+        var vertexShader;
+        var fragmentShader;
+
+        canvas = configureCanvas("glCanvas", 500, 500);
+        glContext = getGlContext(canvas);
+
+        vertexShader = compileShader("2d-vertex-shader", glContext.VERTEX_SHADER);
+        fragmentShader = compileShader("2d-fragment-shader", glContext.FRAGMENT_SHADER);
+
+        program = combineTwoShadersToProgram(vertexShader, fragmentShader);
+
+        buffer = glContext.createBuffer();
+
+        someProgress = 1.0;
+        a = 0.3;
+
+        render();
+      }
+
+      function configureCanvas(canvasName, width, heigth){
+        var canvas = document.getElementById(canvasName);
+        canvas.width = width;
+        canvas.height = heigth;
+        return canvas;
+      }
+
+      function getGlContext(canvas){
+        var glContext = canvas.getContext("webgl");
+
+        glContext.viewport(0.0, 0.0, glContext.drawingBufferWidth, glContext.drawingBufferHeight);
+
+        return glContext;
+      }
+
+      function compileShader(scriptName, shaderType){
+        var shaderScript = document.getElementById(scriptName);
+        var shaderSource = shaderScript.text;
+
+        var shader = glContext.createShader(shaderType);
+        glContext.shaderSource(shader, shaderSource);
+        glContext.compileShader(shader);
+        console.log(glContext.getShaderInfoLog(shader));
+        return shader;
+      }
+
+      function combineTwoShadersToProgram(shader1, shader2){
+        var program = glContext.createProgram();
+        glContext.attachShader(program, shader1);
+        glContext.attachShader(program, shader2);
+        glContext.linkProgram(program);
+        return program;
+      }
+
+      function render() {
+        window.requestAnimationFrame(render);
+
+        clearBackground();
+
+        glContext.useProgram(program);
+
+        glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
+
+        glContext.bufferData(glContext.ARRAY_BUFFER, new Float32Array(CalcVertices()), glContext.STATIC_DRAW);
+
+        setVertexAttribute("vertexPosition");
+        setFragmentUniform("t",someProgress);
+		    setFragmentUniform("s",0.5);
+
+
+        someProgress += 0.01;
+
+        glContext.drawArrays(glContext.TRIANGLES, 0, 3888);
+      }
+
+      function clearBackground(){
+        glContext.clearColor(0.9, 0.9, 0.9, 1.0);
+        glContext.clear(glContext.COLOR_BUFFER_BIT);
+      }
+
+      function setVertexAttribute(attributeName){
+        positionLocation = glContext.getAttribLocation(program, attributeName);
+        glContext.enableVertexAttribArray(positionLocation);
+        glContext.vertexAttribPointer(positionLocation, 3, glContext.FLOAT, false, 0, 0);
+      }
+
+      function setFragmentUniform(uniformName, color){
+        var tLocation = glContext.getUniformLocation(program, uniformName);
+        glContext.uniform1f(tLocation, color);
+      }
+
+      function CalcVertices(){
+        var vertices = [];
+        var r = 1.0;
+        var center = [0.0, 0.0, 0.0];
+        var spherePoints = [];
+
+        for(var latitude = 0; latitude <= 18; latitude++){
+          var row = [];
+          for(var longitude = 0; longitude <= 36; longitude++){
+            var theta = latitude * 10.0 * Math.PI/180.0;
+            var phi = longitude * 10.0 * Math.PI/180.0;
+
+            var x = r * Math.sin(theta) * Math.sin(phi);
+            var y = r * Math.cos(theta);
+            var z = r * Math.sin(theta)  * Math.cos(phi);
+            var point = [[x],[y],[z]];
+            row.push(point);
+          }
+          spherePoints.push(row);
+        }
+
+        for(var latitude = 0; latitude < 18; latitude++){
+          for(var longitude = 0; longitude < 36; longitude++){
+            var triangle1 = [];
+            var triangle2 = [];
+            triangle1.push(spherePoints[latitude][longitude]);
+            triangle2.push(spherePoints[latitude][longitude]);
+
+
+            triangle1.push(spherePoints[latitude + 1][longitude]);
+            triangle1.push(spherePoints[latitude + 1][longitude + 1]);
+
+            triangle2.push(spherePoints[latitude + 1][longitude + 1]);
+            triangle2.push(spherePoints[latitude][longitude + 1]);
+
+            for(var i = 0; i < 3; i++){
+              for(var j = 0; j < 3; j++){
+                vertices.push(triangle1[i][j]);
+              }
+            }
+            for(var i = 0; i < 3; i++){
+              for(var j = 0; j < 3; j++){
+                vertices.push(triangle2[i][j]);
+              }
+            }
+          }
+        }
+
+        return vertices;
+      }
+</script>
+</body>
+</html>
