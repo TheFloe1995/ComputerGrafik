@@ -15,23 +15,30 @@
     varying float brightness;
 
 		void main() {
-      float intensity = 0.7;  // Il
+      float intensity = 0.8;  // Il
       float medium = 0.6;     // Im
       float ambiente = 0.2;   // Ia
-      float hardness = 50.0;    // h
-      float specularity = 1.0; // s
+      float hardness = 10.0;    // h
+      float specularity = 0.5; // s
 
-      vec3 ligthSource = vec3(3.0, 3.0, -10.0);
-      vec3 pointOfView = vec3(0.0, 0.0, -1.0);
-      vec3 light = normalize(ligthSource - vertexPosition); // PL
-			vec3 normal = normalize(vertexPosition);
-      vec3 view = normalize(pointOfView - vertexPosition);
+      mat3 turnMat;
+      turnMat[0] = vec3(cos(t), 0.0, sin(t));
+      turnMat[1] = vec3(0.0, 1.0, 0.0);
+      turnMat[2] = vec3(-sin(t), 0.0, cos(t));
+
+      vec3 turnedVertexPosition = turnMat * vertexPosition;
+
+      vec3 ligthSource = vec3(10.0, 10.0, -10.0);
+      vec3 pointOfView = vec3(0.0, 0.0, -5.0);
+      vec3 light = normalize(ligthSource - turnedVertexPosition); // PL
+			vec3 normal = normalize(turnedVertexPosition);
+      vec3 view = normalize(pointOfView - turnedVertexPosition);
       vec3 reflection = normalize(-light + 2.0*dot(light, normal)*normal);
-      float Is = intensity * medium * specularity * max(0.0, pow(dot(reflection, view), hardness));
+      float Is = intensity * medium * specularity * pow(max(0.0, dot(reflection, view)), hardness);
 
       brightness = intensity * medium * max(0.0, dot(normal, light)) + ambiente + Is;
-
-      gl_Position = vec4(vertexPosition[0], vertexPosition[1], vertexPosition[2], -vertexPosition[2] + 2.0);
+      //brightness = Is;
+      gl_Position = vec4(turnedVertexPosition[0], turnedVertexPosition[1], turnedVertexPosition[2], turnedVertexPosition[2] + 2.0);
 		}
 	</script>
 
@@ -39,8 +46,8 @@
 		precision mediump float;
 		varying float brightness;
 		void main() {
-
-			gl_FragColor = vec4(brightness, brightness, brightness, 1.0);
+      //gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+			gl_FragColor = vec4(0.2, brightness, 0.2, 1.0);
 		}
 	</script>
 
@@ -125,7 +132,7 @@
 
         someProgress += 0.01;
 
-        glContext.drawArrays(glContext.TRIANGLES, 0, 3888);
+        glContext.drawArrays(glContext.TRIANGLES, 0, 1944);
       }
 
       function clearBackground(){
@@ -184,13 +191,13 @@
                 vertices.push(triangle1[i][j]);
               }
             }
-
+/*
             for(var i = 0; i < 3; i++){
               for(var j = 0; j < 3; j++){
                 vertices.push(triangle2[i][j]);
               }
             }
-
+*/
           }
         }
 
